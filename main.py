@@ -1,1 +1,1 @@
-print(len('Привет'))
+print(len('Hello'))
