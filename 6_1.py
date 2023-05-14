@@ -8,3 +8,4 @@ while len(result) < n:
         result.append(i)
     i += 1
 print(result)
+
