@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, PositiveInt
 
 Base = declarative_base()
 
@@ -13,63 +13,59 @@ class User(Base):
     name = Column(String)
     age = Column(Integer)
 
-    addresses = relationship("Address", back_populates="user")
+    jobs = relationship("Job", back_populates="user")
 
 
-class Address(Base):
-    __tablename__ = 'addresses'
+class Job(Base):
+    __tablename__ = 'jobs'
 
     id = Column(Integer, primary_key=True)
-    email = Column(String)
+    profession = Column(String)
+    experience = Column(Integer)
     user_id = Column(Integer, ForeignKey('users.id'))
 
-    user = relationship("User", back_populates="addresses")
+    user = relationship("User", back_populates="jobs")
 
 
 class UserSchema(BaseModel):
     name: str
-    age: int
-
-    @validator('age')
-    def age_must_be_positive(cls, v):
-        if v < 0:
-            raise ValueError('Возраст должен быть положительным числом')
-        return v
+    age: PositiveInt
 
 
 engine = create_engine('sqlite:///example.db')
 Base.metadata.create_all(engine)
 
-Session = sessionmaker(bind=engine)
-session = Session()
-
 
 def create_user(name: str, age: int):
-    user_schema = UserSchema(name=name, age=age)
-    user = User(**user_schema.dict())
-    session.add(user)
-    session.commit()
-    return user
+    with sessionmaker(bind=engine)() as session:
+        user_schema = UserSchema(name=name, age=age)
+        user = User(**user_schema.dict())
+        session.add(user)
+        session.commit()
+        return user
 
 
-def add_address(user_id: int, email: str):
-    address = Address(email=email, user_id=user_id)
-    session.add(address)
-    session.commit()
-    return address
+def add_job(user_id: int, profession: str, experience: int):
+    with sessionmaker(bind=engine)() as session:
+        job = Job(profession=profession, experience=experience)
+        session.add(job)
+        session.commit()
+        return job
 
 
 def get_all_users():
-    return session.query(User).all()
+    with sessionmaker(bind=engine)() as session:
+        return session.query(User).all()
 
 
-def get_all_addresses():
-    return session.query(Address).all()
+def get_all_jobs():
+    with sessionmaker(bind=engine)() as session:
+        return session.query(Job).all()
 
 
 def print_table_list():
     print("    1. Пользователи")
-    print("    2. Адреса")
+    print("    2. Вакансии")
 
 
 def print_actions_list():
@@ -87,11 +83,12 @@ def insert_data(table):
             print(f"    Пользователь создан с id {user.id}")
         except ValueError as e:
             print(f"Validation error: {e}")
-    elif table == "addresses":
-        email = input("    Введите email: ")
+    elif table == "jobs":
+        profession = input("    Введите профессию: ")
+        experience = input("    Введите опыт работы по специальности: ")
         user_id = int(input("    Введите пользовательский id: "))
-        address = add_address(user_id, email)
-        print(f"    Адрес создан id {address.id}")
+        job = add_job(user_id, profession, experience)
+        print(f"    Вакансия создана с id {job.id}")
 
 
 def get_all_data(table):
@@ -100,24 +97,27 @@ def get_all_data(table):
         print("    Пользователи: ")
         for user in users:
             print(f"        id: {user.id}, имя: {user.name}, возраст: {user.age}")
-    elif table == "addresses":
-        addresses = get_all_addresses()
-        print("    Адреса: ")
-        for address in addresses:
-            print(f"        id: {address.id}, email: {address.email}, пользовательский id: {address.user_id}")
+    elif table == "jobs":
+        jobs = get_all_jobs()
+        print("    Вакансии: ")
+        for job in jobs:
+            print(f"        id: {job.id}, профессия: {job.profession}, опыт работы по специальности: {job.experience}, пользовательский id: {job.user_id}")
 
 
 while True:
     print("Список таблиц: ")
     print_table_list()
     table_choice = int(input("    Выберите таблицу: "))
+    if table_choice not in [1,2]:
+        print("Неверный номер таблицы :( попробуйте ещё раз.")
+        continue
 
     if table_choice == 1:
         print('Выбрана таблица "Пользователи"')
         table = "users"
     elif table_choice == 2:
-        print('Выбрана таблица "Адреса"')
-        table = "addresses"
+        print('Выбрана таблица "Вакансии"')
+        table = "jobs"
 
     while True:
         print("Действия с таблицами: ")
@@ -130,3 +130,6 @@ while True:
             insert_data(table)
         elif action_choice == 3:
             get_all_data(table)
+        else:
+            print("Неверный номер действия :( попробуйте ещё раз.")
+
