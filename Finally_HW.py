@@ -42,15 +42,16 @@ def create_user(name: str, age: int):
         user = User(**user_schema.dict())
         session.add(user)
         session.commit()
-        return user
+        return user.id
 
 
 def add_job(user_id: int, profession: str, experience: int):
     with sessionmaker(bind=engine)() as session:
-        job = Job(profession=profession, experience=experience)
+        job = Job(profession=profession, experience=experience, user_id=user_id)
+        job.user_id = user_id
         session.add(job)
         session.commit()
-        return job
+        return job.id
 
 
 def get_all_users():
@@ -75,12 +76,12 @@ def print_actions_list():
 
 
 def insert_data(table):
-    if table == "user":
+    if table == "users":
         name = input("    Введите имя: ")
         age = int(input("    Введите возраст: "))
         try:
             user = create_user(name, age)
-            print(f"    Пользователь создан с id {user.id}")
+            print(f"    Пользователь создан с id {user}")
         except ValueError as e:
             print(f"Validation error: {e}")
     elif table == "jobs":
@@ -88,11 +89,11 @@ def insert_data(table):
         experience = input("    Введите опыт работы по специальности: ")
         user_id = int(input("    Введите пользовательский id: "))
         job = add_job(user_id, profession, experience)
-        print(f"    Вакансия создана с id {job.id}")
+        print(f"    Вакансия создана с id {job}")
 
 
 def get_all_data(table):
-    if table == "user":
+    if table == "users":
         users = get_all_users()
         print("    Пользователи: ")
         for user in users:
@@ -107,7 +108,14 @@ def get_all_data(table):
 while True:
     print("Список таблиц: ")
     print_table_list()
-    table_choice = int(input("    Выберите таблицу: "))
+
+    while True:
+        try:
+            table_choice = int(input("    Выберите таблицу: "))
+            break
+        except ValueError:
+            print('Пожалуйста введите ЧИСЛО')
+
     if table_choice not in [1, 2]:
         print("Неверный номер таблицы :( попробуйте ещё раз.")
         continue
@@ -122,7 +130,12 @@ while True:
     while True:
         print("Действия с таблицами: ")
         print_actions_list()
-        action_choice = int(input("    Выберите действие: "))
+        while True:
+            try:
+                action_choice = int(input("    Выберите действие: "))
+                break
+            except ValueError:
+                print('Пожалуйста введите ЧИСЛО')
 
         if action_choice == 1:
             break
